@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Boletos Vendidos</title>
+  <link rel="stylesheet" href="css/styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+  <style>
+    .crud-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 30px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background-color: #000;
+      border-radius: 10px;
+      overflow: hidden;
+      box-shadow: 0 0 10px rgba(0,0,0,0.05);
+    }
+    thead {
+      background-color: #f5f6f8;
+    }
+    th, td {
+      padding: 15px;
+      text-align: left;
+      border-bottom: 1px solid #e0e0e0;
+    }
+    th {
+      color: #333;
+      font-weight: bold;
+    }
+    tbody tr:hover {
+      background-color: #47e907;
+    }
+    form {
+      margin-top: 30px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    input, button[type="submit"] {
+      padding: 10px;
+      font-size: 16px;
+    }
+    button[type="submit"] {
+      background-color: #1e60d4;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    button[type="submit"]:hover {
+      background-color: #174bb3;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>🎟️ Administración de Boletos</h1>
+    <nav>
+      <a href="cine.html">Inicio</a>
+      <a href="peliculas.html">Películas</a>
+      <a href="horarios.html">Horarios</a>
+    </nav>
+  </header>
+
+  <div class="container">
+    <div class="crud-header">
+      <h2>Boletos Vendidos</h2>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th>ID Cliente</th>
+          <th>ID Horario</th>
+          <th>Cantidad</th>
+          <th>Precio Total</th>
+          <th>Acciones</th>
+        </tr>
+      </thead>
+      <tbody id="tabla-boletos"></tbody>
+    </table>
+
+    <h3>Agregar / Editar Boleto</h3>
+    <form id="boleto-form">
+      <input type="hidden" id="boleto-id" />
+      <input type="text" id="idCliente" placeholder="ID Cliente" required />
+      <input type="text" id="idHorario" placeholder="ID Horario" required />
+      <input type="number" id="cantidad" placeholder="Cantidad" required />
+      <input type="number" id="precioTotal" placeholder="Precio Total" required />
+      <button type="submit">💾 Guardar Boleto</button>
+    </form>
+  </div>
+
+  <script>
+    const supabase = window.supabase.createClient('https://yftyaleorctkoiomoouf.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlmdHlhbGVvcmN0a29pb21vb3VmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDc5MTk3NzYsImV4cCI6MjA2MzQ5NTc3Nn0.XXiT9Z7wM5DAaQ6kW0NCtDIg0pu_aZSHJAuhAt-5gGE');
+
+    document.addEventListener('DOMContentLoaded', () => {
+      cargarBoletos();
+      document.getElementById('boleto-form').addEventListener('submit', function (e) {
+        e.preventDefault();
+        const id = document.getElementById('boleto-id').value;
+        if (id) {
+          actualizarBoleto(id);
+        } else {
+          agregarBoleto();
+        }
+      });
+    });
+
+    async function cargarBoletos() {
+      const { data, error } = await supabase.from('boletos').select('*');
+      if (error) return console.error('Error cargando boletos:', error);
+      const tbody = document.getElementById('tabla-boletos');
+      tbody.innerHTML = '';
+      data.forEach(boleto => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${boleto.idCliente}</td>
+          <td>${boleto.idHorario}</td>
+          <td>${boleto.cantidad}</td>
+          <td>$${boleto.precioTotal.toFixed(2)}</td>
+          <td>
+            <button onclick="editarBoleto('${boleto.id}')">✏️ Editar</button>
+            <button onclick="eliminarBoleto('${boleto.id}')">🗑️ Eliminar</button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function obtenerDatosFormulario() {
+      return {
+        idCliente: document.getElementById('idCliente').value,
+        idHorario: document.getElementById('idHorario').value,
+        cantidad: parseInt(document.getElementById('cantidad').value),
+        precioTotal: parseFloat(document.getElementById('precioTotal').value)
+      };
+    }
+
+    async function agregarBoleto() {
+      const nuevo = obtenerDatosFormulario();
+      nuevo.id = Date.now().toString();
+      const { error } = await supabase.from('boletos').insert([nuevo]);
+      if (error) return console.error('Error agregando boleto:', error);
+      limpiarFormulario();
+      cargarBoletos();
+    }
+
+    async function editarBoleto(id) {
+      const { data, error } = await supabase.from('boletos').select('*').eq('id', id).single();
+      if (error) return console.error('Error obteniendo boleto:', error);
+      document.getElementById('boleto-id').value = data.id;
+      document.getElementById('idCliente').value = data.idCliente;
+      document.getElementById('idHorario').value = data.idHorario;
+      document.getElementById('cantidad').value = data.cantidad;
+      document.getElementById('precioTotal').value = data.precioTotal;
+    }
+
+    async function actualizarBoleto(id) {
+      const actualizado = obtenerDatosFormulario();
+      const { error } = await supabase.from('boletos').update(actualizado).eq('id', id);
+      if (error) return console.error('Error actualizando boleto:', error);
+      limpiarFormulario();
+      cargarBoletos();
+    }
+
+    async function eliminarBoleto(id) {
+      if (!confirm('¿Estás seguro de eliminar este boleto?')) return;
+      const { error } = await supabase.from('boletos').delete().eq('id', id);
+      if (error) return console.error('Error eliminando boleto:', error);
+      cargarBoletos();
+    }
+
+    function limpiarFormulario() {
+      document.getElementById('boleto-form').reset();
+      document.getElementById('boleto-id').value = '';
+    }
+  </script>
+</body>
+</html>
